@@ -2,14 +2,20 @@ const std = @import("std");
 
 const Solution = @import("root").Solution;
 
-pub fn solve(input: *std.Io.Reader) !Solution {
+pub fn solve(input: std.fs.File) !Solution {
+    var reader = blk: {
+        var reader_buffer: [1024]u8 = undefined;
+        var reader = input.reader(&reader_buffer);
+        break :blk &reader.interface;
+    };
+
     var dial: i32 = 50;
     var sign: i32 = 1;
     var number: u32 = 0;
     var part_1: u32 = 0;
     var part_2: u32 = 0;
     while (true) {
-        var char: u8 = input.takeByte() catch 0;
+        var char: u8 = reader.takeByte() catch 0;
         back: switch (char) {
             0 => break,
             'r', 'R' => {
@@ -23,7 +29,7 @@ pub fn solve(input: *std.Io.Reader) !Solution {
                     const digit = char - '0';
                     number *= 10;
                     number += digit;
-                    char = input.takeByte() catch 0;
+                    char = reader.takeByte() catch 0;
                 }
                 continue :back char;
             },
