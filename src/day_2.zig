@@ -114,19 +114,19 @@ pub fn solve(input: std.fs.File) !Solution {
             .number => |num_text| {
                 break :blk std.fmt.parseUnsigned(u64, num_text, 10) catch unreachable;
             },
-            else => return error.unexpectedToken,
+            else => return error.UnexpectedToken,
         };
 
         switch (tokenizer.nextToken()) {
             .dash => {},
-            else => return error.unexpectedToken,
+            else => return error.UnexpectedToken,
         }
 
         const interval_end: u64 = blk: switch (tokenizer.nextToken()) {
             .number => |num_text| {
                 break :blk std.fmt.parseUnsigned(u64, num_text, 10) catch unreachable;
             },
-            else => return error.unexpectedToken,
+            else => return error.UnexpectedToken,
         };
 
         part_1 += part1InvalidIDs(interval_start, interval_end);
@@ -136,7 +136,7 @@ pub fn solve(input: std.fs.File) !Solution {
         switch (tokenizer.nextToken()) {
             .comma => {},
             .EOI => break,
-            else => return error.unexpectedToken,
+            else => return error.UnexpectedToken,
         }
     }
     return .{
