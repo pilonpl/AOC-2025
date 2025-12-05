@@ -91,6 +91,7 @@ pub fn solve(input: std.fs.File) !Solution {
     const allocator = std.heap.smp_allocator;
     const size = try input.getEndPos() - try input.getPos();
     const text = try allocator.alloc(u8, size);
+    defer allocator.free(text);
     _ = try input.read(text);
 
     var part_1: u64 = 0;
