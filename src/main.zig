@@ -49,17 +49,18 @@ pub fn main() !void {
         std.process.exit(1);
     };
 
-    const solution: Solution = blk: {
-        if (day == 1) break :blk try day_1.solve(file);
-        if (day == 2) break :blk try day_2.solve(file);
-        if (day == 3) break :blk try day_3.solve(file);
-        if (day == 4) break :blk try day_4.solve(file);
-        if (day == 5) break :blk try day_5.solve(file);
-        if (day == 6) break :blk try day_6.solve(file);
-
-        try stderr.print("{s}\n", .{usage});
-        try stderr.flush();
-        std.process.exit(1);
+    const solution: Solution = switch (day) {
+        1 => try day_1.solve(file),
+        2 => try day_2.solve(file),
+        3 => try day_3.solve(file),
+        4 => try day_4.solve(file),
+        5 => try day_5.solve(file),
+        6 => try day_6.solve(file),
+        else => {
+            try stderr.print("{s}\n", .{usage});
+            try stderr.flush();
+            std.process.exit(1);
+        },
     };
 
     try stdout.print("Part 1: {}\nPart 2: {}\n", .{ solution.part_1, solution.part_2 });

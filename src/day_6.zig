@@ -72,38 +72,54 @@ const Tokenizer = struct {
     }
 };
 
-const Map = struct {
-    tokens: []Token,
-    width: u32,
-    height: u32,
+fn Map(comptime T: type) type {
+    return struct {
+        tiles: []T,
+        width: u32,
+        height: u32,
 
-    pub fn init(tokens: []Token) !@This() {
-        var map: @This() = .{
-            .tokens = tokens,
-            .width = 0,
-            .height = 0,
-        };
+        pub fn init(tiles: []T) !@This() {
+            var map: @This() = .{
+                .tiles = tiles,
+                .width = 0,
+                .height = 0,
+            };
 
-        for (tokens, 0..) |token, i| {
-            switch (token) {
-                .number, .plus, .asterisk, .EOI => {},
-                .newline => {
-                    if (map.width == 0) map.width = @intCast(i);
-                    map.height += 1;
-                },
-                else => return error.InvalidInput,
+            if (T == Token) {
+                for (tiles, 0..) |tile, i| {
+                    switch (tile) {
+                        .number, .plus, .asterisk, .EOI => {},
+                        .newline => {
+                            if (map.width == 0) map.width = @intCast(i);
+                            map.height += 1;
+                        },
+                        else => return error.InvalidInput,
+                    }
+                }
             }
+            if (T == u8) {
+                for (tiles, 0..) |tile, i| {
+                    switch (tile) {
+                        ' ', '+', '*', '0'...'9' => {},
+                        '\n' => {
+                            if (map.width == 0) map.width = @intCast(i);
+                            map.height += 1;
+                        },
+                        else => return error.InvalidInput,
+                    }
+                }
+            }
+
+            return map;
         }
 
-        return map;
-    }
-
-    pub fn access(self: *@This(), x: i32, y: i32) ?*Token {
-        if (x < 0 or x >= self.width) return null;
-        if (y < 0 or y >= self.height) return null;
-        return &self.tokens[@as(usize, @intCast(x)) + @as(usize, @intCast(y)) * (self.width + 1)];
-    }
-};
+        pub fn access(self: *@This(), x: i32, y: i32) ?*T {
+            if (x < 0 or x >= self.width) return null;
+            if (y < 0 or y >= self.height) return null;
+            return &self.tiles[@as(usize, @intCast(x)) + @as(usize, @intCast(y)) * (self.width + 1)];
+        }
+    };
+}
 
 pub fn solve(input: std.fs.File) !Solution {
     const allocator = std.heap.smp_allocator;
@@ -114,6 +130,7 @@ pub fn solve(input: std.fs.File) !Solution {
 
     var tokenizer = Tokenizer.init(text);
     var tokens: std.ArrayList(Token) = .{};
+    defer tokens.deinit(allocator);
     while (true) {
         const token = tokenizer.nextToken();
         switch (token) {
@@ -128,17 +145,17 @@ pub fn solve(input: std.fs.File) !Solution {
         }
     }
 
-    var map = try Map.init(tokens.items);
+    var token_map = try Map(Token).init(tokens.items);
     var part_1: u64 = 0;
-    for (0..map.width) |x| {
-        const operation = map.access(@intCast(x), @intCast(map.height - 1)).?.*;
+    for (0..token_map.width) |x| {
+        const operation = token_map.access(@intCast(x), @intCast(token_map.height - 1)).?.*;
         var accumulator: u64 = 0;
-        for (0..map.height - 1) |y| {
-            const token = map.access(@intCast(x), @intCast(y)).?.*;
-            const number: u64 = blk: switch (token) {
-                .number => |number_text| {
-                    break :blk try std.fmt.parseUnsigned(u64, number_text, 10);
-                },
+
+        for (0..token_map.height - 1) |y| {
+            const token = token_map.access(@intCast(x), @intCast(y)).?.*;
+
+            const number: u64 = switch (token) {
+                .number => |number_text| try std.fmt.parseUnsigned(u64, number_text, 10),
                 else => return error.UnexpectedToken,
             };
 
@@ -156,8 +173,43 @@ pub fn solve(input: std.fs.File) !Solution {
         part_1 += accumulator;
     }
 
+    var char_map = try Map(u8).init(text);
+    var part_2: u64 = 0;
+    var block_x: i32 = 0;
+    var accumulator: u64 = 0;
+    for (0..char_map.width) |x| {
+        const operator = char_map.access(@intCast(block_x), @intCast(char_map.height - 1)).?.*;
+        var number: u64 = 0;
+
+        for (0..char_map.height - 1) |y| {
+            const char = char_map.access(@intCast(x), @intCast(y)).?.*;
+            switch (char) {
+                ' ' => {},
+                '0'...'9' => |digit_ascii| {
+                    number *= 10;
+                    number += digit_ascii - '0';
+                },
+                else => return error.InvalidInput,
+            }
+        }
+
+        if (number == 0) {
+            block_x = @intCast(x + 1);
+            part_2 += accumulator;
+            accumulator = 0;
+        } else if (operator == '+') {
+            accumulator += number;
+        } else if (operator == '*') {
+            if (accumulator == 0) accumulator = 1;
+            accumulator *= number;
+        } else {
+            return error.InvalidInput;
+        }
+    }
+    part_2 += accumulator;
+
     return .{
         .part_1 = @intCast(part_1),
-        .part_2 = -1,
+        .part_2 = @intCast(part_2),
     };
 }
