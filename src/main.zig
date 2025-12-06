@@ -5,6 +5,7 @@ const day_2 = @import("day_2.zig");
 const day_3 = @import("day_3.zig");
 const day_4 = @import("day_4.zig");
 const day_5 = @import("day_5.zig");
+const day_6 = @import("day_6.zig");
 
 pub const Solution = struct {
     part_1: i64,
@@ -13,7 +14,7 @@ pub const Solution = struct {
 
 const usage =
     \\Usage: aoc <day> <input_file_path>
-    \\Days 1 to 5 are available
+    \\Days 1 to 6 are available
 ;
 
 pub fn main() !void {
@@ -54,6 +55,8 @@ pub fn main() !void {
         if (day == 3) break :blk try day_3.solve(file);
         if (day == 4) break :blk try day_4.solve(file);
         if (day == 5) break :blk try day_5.solve(file);
+        if (day == 6) break :blk try day_6.solve(file);
+
         try stderr.print("{s}\n", .{usage});
         try stderr.flush();
         std.process.exit(1);
