@@ -7,6 +7,7 @@ const day_4 = @import("day_4.zig");
 const day_5 = @import("day_5.zig");
 const day_6 = @import("day_6.zig");
 const day_7 = @import("day_7.zig");
+const day_8 = @import("day_8.zig");
 
 pub const Solution = struct {
     part_1: i64,
@@ -15,7 +16,7 @@ pub const Solution = struct {
 
 const usage =
     \\Usage: aoc <day> <input_file_path>
-    \\Days 1 to 7 are available
+    \\Days 1 to 8 are available
 ;
 
 pub fn main() !void {
@@ -58,6 +59,7 @@ pub fn main() !void {
         5 => try day_5.solve(file),
         6 => try day_6.solve(file),
         7 => try day_7.solve(file),
+        8 => try day_8.solve(file),
         else => {
             try stderr.print("{s}\n", .{usage});
             try stderr.flush();
