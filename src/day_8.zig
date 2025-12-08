@@ -82,15 +82,15 @@ const Edge = struct {
 const Graph = struct {
     allocator: std.mem.Allocator,
     nodes: std.ArrayList(Node),
-    edges: std.ArrayList(Edge),
     next_id: u32,
+    skip: std.AutoHashMap(Edge, void),
 
     pub fn init(allocator: std.mem.Allocator, tokenizer: *Tokenizer) !@This() {
         var graph: @This() = .{
             .allocator = allocator,
             .nodes = .{},
-            .edges = .{},
             .next_id = 0,
+            .skip = std.AutoHashMap(Edge, void).init(allocator),
         };
 
         while (true) {
@@ -127,6 +127,11 @@ const Graph = struct {
         return graph;
     }
 
+    pub fn deinit(self: *@This()) void {
+        self.skip.deinit();
+        self.nodes.deinit(self.allocator);
+    }
+
     pub fn isConnected(self: *const @This(), node_1: u32, node_2: u32) bool {
         return self.nodes.items[node_1].circuit_id == self.nodes.items[node_2].circuit_id;
     }
@@ -143,9 +148,46 @@ const Graph = struct {
     pub fn distance(self: *const @This(), node_1: u32, node_2: u32) f32 {
         return self.nodes.items[node_1].distance(self.nodes.items[node_2]);
     }
+
+    pub fn isOneCircuit(self: *const @This()) bool {
+        const id = self.nodes.items[0].circuit_id;
+        for (self.nodes.items[1..]) |*node| {
+            if (node.circuit_id != id) return false;
+        }
+        return true;
+    }
+
+    pub fn connectClosests(self: *@This()) !Edge {
+        var best_distance: f32 = std.math.inf(f32);
+        var best_edge: ?Edge = null;
+        for (0..self.nodes.items.len - 1) |i| {
+            for (i + 1..self.nodes.items.len) |j| {
+                const node_1 = &self.nodes.items[i];
+                const node_2 = &self.nodes.items[j];
+                const node_distance = node_1.distance(node_2);
+                const edge: Edge = .{ .from = @intCast(i), .to = @intCast(j) };
+
+                if (node_distance > best_distance) continue;
+                if (self.skip.contains(edge)) continue;
+
+                best_distance = node_distance;
+                best_edge = edge;
+            }
+        }
+        if (best_edge) |edge| {
+            if (!self.isConnected(edge.from, edge.to)) {
+                self.connect(edge.from, edge.to);
+            }
+            std.debug.assert(edge.from < edge.to);
+            try self.skip.put(edge, {});
+            return edge;
+        } else {
+            return error.TooManyCycles;
+        }
+    }
 };
 
-pub fn solve(input: std.fs.File) !Solution {
+pub fn solve(input: std.fs.File, args: []const []const u8) !Solution {
     const allocator = std.heap.smp_allocator;
     const file_size = try input.getEndPos() - try input.getPos();
     const text = try allocator.alloc(u8, file_size);
@@ -154,34 +196,13 @@ pub fn solve(input: std.fs.File) !Solution {
 
     var tokenizer = Tokenizer.init(text);
     var graph = try Graph.init(allocator, &tokenizer);
-    const cycles: u32 = 1000;
+    defer graph.deinit();
+    const cycles = if (args.len > 0) try std.fmt.parseUnsigned(u32, args[0], 10) else 1000;
 
-    var skip = std.AutoHashMap(Edge, void).init(allocator);
-    defer skip.deinit();
-    try skip.ensureTotalCapacity(cycles);
+    try graph.skip.ensureTotalCapacity(@intCast(graph.nodes.items.len));
 
     for (0..cycles) |_| {
-        var best_distance: f32 = std.math.inf(f32);
-        var best_edge: Edge = undefined;
-        for (0..graph.nodes.items.len - 1) |i| {
-            for (i + 1..graph.nodes.items.len) |j| {
-                const node_1 = &graph.nodes.items[i];
-                const node_2 = &graph.nodes.items[j];
-                const distance = node_1.distance(node_2);
-                const edge: Edge = .{ .from = @intCast(i), .to = @intCast(j) };
-
-                if (distance > best_distance) continue;
-                if (skip.contains(edge)) continue;
-
-                best_distance = distance;
-                best_edge = edge;
-            }
-        }
-        if (!graph.isConnected(best_edge.from, best_edge.to)) {
-            graph.connect(best_edge.from, best_edge.to);
-        }
-        std.debug.assert(best_edge.from < best_edge.to);
-        try skip.put(best_edge, {});
+        _ = try graph.connectClosests();
     }
 
     var part_1: u64 = 1;
@@ -203,8 +224,17 @@ pub fn solve(input: std.fs.File) !Solution {
         }
     }
 
+    const edge: Edge = blk: while (true) {
+        const edge = try graph.connectClosests();
+        if (!graph.isOneCircuit()) continue;
+        break :blk edge;
+    };
+    // f32 is not precise enough to first multiply it and then convert to int
+    const part_2 = @as(u64, @intFromFloat(graph.nodes.items[edge.from].pos[0])) *
+        @as(u64, @intFromFloat(graph.nodes.items[edge.to].pos[0]));
+
     return .{
         .part_1 = @intCast(part_1),
-        .part_2 = 0,
+        .part_2 = @intCast(part_2),
     };
 }

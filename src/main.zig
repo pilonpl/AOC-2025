@@ -15,7 +15,7 @@ pub const Solution = struct {
 };
 
 const usage =
-    \\Usage: aoc <day> <input_file_path>
+    \\Usage: aoc <day> <input_file_path> [arg...]
     \\Days 1 to 8 are available
 ;
 
@@ -31,7 +31,7 @@ pub fn main() !void {
     const stderr = &stderr_writer.interface;
 
     const args = try std.process.argsAlloc(allocator);
-    if (args.len != 3) {
+    if (args.len < 3) {
         try stderr.print("{s}\n", .{usage});
         try stderr.flush();
         std.process.exit(1);
@@ -59,7 +59,7 @@ pub fn main() !void {
         5 => try day_5.solve(file),
         6 => try day_6.solve(file),
         7 => try day_7.solve(file),
-        8 => try day_8.solve(file),
+        8 => try day_8.solve(file, args[3..]),
         else => {
             try stderr.print("{s}\n", .{usage});
             try stderr.flush();
